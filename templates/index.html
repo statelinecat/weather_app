@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Погода</title>
+</head>
+<body>
+    <h1>Погода в городе</h1>
+
+    <!-- Форма поиска -->
+    <form id="search-form">
+        <input type="text" id="city-input" name="city" list="suggestions" required placeholder="Введите название города">
+        <datalist id="suggestions"></datalist>
+        <button type="submit">Найти</button>
+    </form>
+
+    <!-- Ссылка на последний просмотренный город -->
+    {% if last_city %}
+        <p><a href="/weather/{{ last_city }}">Посмотреть погоду в {{ last_city }}</a></p>
+    {% endif %}
+
+    <!-- Подключение скрипта -->
+    <script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
+</body>
+</html>
