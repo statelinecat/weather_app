@@ -1,25 +1,101 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Погода</title>
+    <style>
+        #suggestions {
+            border: 1px solid #ccc;
+            max-width: 300px;
+            list-style: none;
+            padding-left: 5px;
+            position: absolute;
+            background: white;
+            z-index: 1000;
+            cursor: pointer;
+            margin-top: 0;
+        }
+        #suggestions li {
+            padding: 5px;
+        }
+        #suggestions li:hover {
+            background-color: #eee;
+        }
+        form {
+            position: relative;
+        }
+    </style>
 </head>
 <body>
     <h1>Погода в городе</h1>
 
-    <!-- Форма поиска -->
-    <form id="search-form">
-        <input type="text" id="city-input" name="city" list="suggestions" required placeholder="Введите название города">
-        <datalist id="suggestions"></datalist>
-        <button type="submit">Найти</button>
+    <form method="post" autocomplete="off">
+        <input type="text" name="city" id="city-input" placeholder="Введите город" />
+        <button type="submit">Узнать погоду</button>
+        <ul id="suggestions"></ul>
     </form>
 
-    <!-- Ссылка на последний просмотренный город -->
-    {% if last_city %}
-        <p><a href="/weather/{{ last_city }}">Посмотреть погоду в {{ last_city }}</a></p>
+    {% if weather %}
+    <h2>{{ weather.city }}</h2>
+
+    <p><strong>Сейчас:</strong> {{ weather.current.temperature }} °C, {{ weather.current.description }}</p>
+    <img src="http://openweathermap.org/img/wn/{{ weather.current.icon }}@2x.png" alt="Иконка погоды" />
+
+    <h3>Почасовой прогноз (ближайшие 6 часов)</h3>
+    <ul>
+        {% for hour in weather.hourly %}
+        <li>
+            {{ hour.time }} — {{ hour.temp }}°C
+            <img src="http://openweathermap.org/img/wn/{{ hour.icon }}.png" alt="Иконка" />
+            {{ hour.description }}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h3>Прогноз на 5 дней</h3>
+    <ul>
+        {% for day in weather.forecast %}
+        <li>
+            <strong>{{ day.date }}</strong> — День: {{ day.temperature_day }} °C, Ночь: {{ day.temperature_night }} °C
+            <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png" alt="Иконка" />
+            {{ day.description }}
+        </li>
+        {% endfor %}
+    </ul>
     {% endif %}
 
-    <!-- Подключение скрипта -->
-    <script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
+    <script>
+        const input = document.getElementById('city-input');
+        const suggestions = document.getElementById('suggestions');
+
+        input.addEventListener('input', async () => {
+            const query = input.value.trim();
+            if (query.length < 2) {
+                suggestions.innerHTML = '';
+                return;
+            }
+
+            const res = await fetch(`/autocomplete?q=${encodeURIComponent(query)}`);
+            const cities = await res.json();
+
+            suggestions.innerHTML = '';
+            cities.forEach(city => {
+                const li = document.createElement('li');
+                li.textContent = city;
+                li.onclick = () => {
+                    input.value = city;
+                    suggestions.innerHTML = '';
+                };
+                suggestions.appendChild(li);
+            });
+        });
+
+        // Скрыть подсказки при клике вне поля
+        document.addEventListener('click', (e) => {
+            if (e.target !== input) {
+                suggestions.innerHTML = '';
+            }
+        });
+    </script>
 </body>
 </html>
