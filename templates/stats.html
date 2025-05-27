@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Статистика поиска</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            background-color: #f0f0f0;
+            margin-bottom: 5px;
+            border-radius: 5px;
+        }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #007BFF;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Самые популярные города</h1>
+
+    {% if top_cities and top_cities|length > 0 %}
+        <ul>
+            {% for city, count in top_cities %}
+                <li>{{ city }} — {{ count }} раз</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Пока нет данных о поиске городов.</p>
+    {% endif %}
+
+    <a href="/">← Вернуться на главную</a>
+</body>
+</html>

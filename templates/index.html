@@ -1,99 +1,177 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8" />
-    <title>Погода</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогноз погоды</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #city-input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
         #suggestions {
-            border: 1px solid #ccc;
-            max-width: 300px;
-            list-style: none;
-            padding-left: 5px;
             position: absolute;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
             background: white;
             z-index: 1000;
-            cursor: pointer;
-            margin-top: 0;
+            display: none;
         }
         #suggestions li {
-            padding: 5px;
+            padding: 8px 10px;
+            cursor: pointer;
+            list-style-type: none;
         }
         #suggestions li:hover {
-            background-color: #eee;
+            background-color: #f0f0f0;
         }
-        form {
-            position: relative;
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .weather-container {
+            margin-top: 30px;
+        }
+        .hourly-forecast, .daily-forecast {
+            margin-top: 20px;
+        }
+        .forecast-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <h1>Погода в городе</h1>
+    <h1>Прогноз погоды</h1>
 
-    <form method="post" autocomplete="off">
-        <input type="text" name="city" id="city-input" placeholder="Введите город" />
-        <button type="submit">Узнать погоду</button>
-        <ul id="suggestions"></ul>
+    <form method="post">
+        <div class="search-container">
+            <input type="text" id="city-input" name="city" placeholder="Введите город" required autocomplete="off">
+            <ul id="suggestions"></ul>
+        </div>
+        <button type="submit">Показать погоду</button>
     </form>
 
     {% if weather %}
-    <h2>{{ weather.city }}</h2>
+    <div class="weather-container">
+        <h2>Погода в {{ weather.city }}</h2>
 
-    <p><strong>Сейчас:</strong> {{ weather.current.temperature }} °C, {{ weather.current.description }}</p>
-    <img src="http://openweathermap.org/img/wn/{{ weather.current.icon }}@2x.png" alt="Иконка погоды" />
+        <div class="hourly-forecast">
+            <h3>Ближайшие 6 часов:</h3>
+            {% for hour in weather.hourly %}
+            <div class="forecast-item">
+                <strong>{{ hour.time }}</strong>: {{ hour.temp }}°C {{ hour.icon }} {{ hour.description }}
+            </div>
+            {% endfor %}
+        </div>
 
-    <h3>Почасовой прогноз (ближайшие 6 часов)</h3>
-    <ul>
-        {% for hour in weather.hourly %}
-        <li>
-            {{ hour.time }} — {{ hour.temp }}°C
-            <img src="http://openweathermap.org/img/wn/{{ hour.icon }}.png" alt="Иконка" />
-            {{ hour.description }}
-        </li>
-        {% endfor %}
-    </ul>
-
-    <h3>Прогноз на 5 дней</h3>
-    <ul>
-        {% for day in weather.forecast %}
-        <li>
-            <strong>{{ day.date }}</strong> — День: {{ day.temperature_day }} °C, Ночь: {{ day.temperature_night }} °C
-            <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png" alt="Иконка" />
-            {{ day.description }}
-        </li>
-        {% endfor %}
-    </ul>
+        <div class="daily-forecast">
+            <h3>Прогноз на 7 дней:</h3>
+            {% for day in weather.forecast %}
+            <div class="forecast-item">
+                <strong>{{ day.date }}</strong>:
+                Днём {{ day.temperature_day }}°C / Ночью {{ day.temperature_night }}°C
+                {{ day.icon }} {{ day.description }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
     {% endif %}
 
-    <script>
-        const input = document.getElementById('city-input');
-        const suggestions = document.getElementById('suggestions');
+    <!-- Вывод истории -->
+    {% if history %}
+        <h3>История поиска</h3>
+        <ul>
+          {% for city in history %}
+          <li><a href="#" onclick="document.getElementById('city-input').value='{{ city }}';">{{ city }}</a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
 
-        input.addEventListener('input', async () => {
-            const query = input.value.trim();
-            if (query.length < 2) {
-                suggestions.innerHTML = '';
+
+        <!-- Самые популярные города -->
+            {% if top_cities %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                <h3>Популярные города</h3>
+                <a href="/stats" style="text-decoration: none;">
+                    <button type="button" style="padding: 8px 12px; font-size: 14px;">Подробнее</button>
+                </a>
+            </div>
+            <ul>
+                {% for city, count in top_cities %}
+                <li>{{ city }} (запрашивали {{ count }} раз)</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+    <script>
+        const cityInput = document.getElementById('city-input');
+        const suggestionsList = document.getElementById('suggestions');
+        let debounceTimer;
+
+        cityInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+
+            if (!query) {
+                suggestionsList.style.display = 'none';
                 return;
             }
 
-            const res = await fetch(`/autocomplete?q=${encodeURIComponent(query)}`);
-            const cities = await res.json();
-
-            suggestions.innerHTML = '';
-            cities.forEach(city => {
-                const li = document.createElement('li');
-                li.textContent = city;
-                li.onclick = () => {
-                    input.value = city;
-                    suggestions.innerHTML = '';
-                };
-                suggestions.appendChild(li);
-            });
+            debounceTimer = setTimeout(() => {
+                fetch(`/autocomplete?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(suggestions => {
+                        if (suggestions.length > 0) {
+                            suggestionsList.innerHTML = '';
+                            suggestions.forEach(suggestion => {
+                                const li = document.createElement('li');
+                                li.textContent = suggestion;
+                                li.addEventListener('click', () => {
+                                    cityInput.value = suggestion;
+                                    suggestionsList.style.display = 'none';
+                                });
+                                suggestionsList.appendChild(li);
+                            });
+                            suggestionsList.style.display = 'block';
+                        } else {
+                            suggestionsList.style.display = 'none';
+                        }
+                    })
+                    .catch(() => {
+                        suggestionsList.style.display = 'none';
+                    });
+            }, 300);
         });
 
-        // Скрыть подсказки при клике вне поля
+        // Скрываем подсказки при клике вне поля
         document.addEventListener('click', (e) => {
-            if (e.target !== input) {
-                suggestions.innerHTML = '';
+            if (e.target !== cityInput) {
+                suggestionsList.style.display = 'none';
             }
         });
     </script>
